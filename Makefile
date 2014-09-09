@@ -6,6 +6,7 @@
 RM	= \rm -f
 PROG	= emond
 BINPATH	=/usr/local/bin
+CNFPATH	=/etc/
 
 SRC	= emond.c sockets.c lcdproc.c config.c webapi.c
 OBJ	= $(SRC:.c=.o)
@@ -24,7 +25,7 @@ OBJS_DEPEND= -lwiringPi -lrt -lcurl
 all: target
 
 target: Makefile
-	@echo "--- Compile and Linking all object files to create the executable file: $(PROG) ---"
+	@echo "--- Compile and Link all object files to create the executable file: $(PROG) ---"
 	$(CC) $(SRC) -o $(PROG) $(CFLAGS) $(OBJS_DEPEND) $(OPTIONS)
 	@echo ""
 
@@ -34,6 +35,7 @@ clean :
 	@echo "" 
 
 install : target
-	@echo "---- Install binaries ----"
+	@echo "---- Install binaries and scripts ----"
 	cp $(PROG) $(BINPATH)
+	cp emon $(CNFPATH)/init.d/
  
