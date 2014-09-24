@@ -1,7 +1,7 @@
 /* 
  * Energy Monitor 
  * 
- * This program counts the pulses from and energy meter and calculates the 
+ * This program counts the pulses from an energy meter and calculates the 
  * following values:
  *  - instant power consumption
  *  - daily energy consumption
@@ -17,9 +17,11 @@
  * (see http://wiringpi.com)
  * 
  * Build command:
- * gcc -o emond emond.c sockets.c lcdproc.c config.c webapi.c -I/usr/local/include -L/usr/local/lib -lwiringPi -lrt -lcurl
+ * gcc -o emond emond.c sockets.c lcdproc.c config.c webapi.c \ 
+ *  -I/usr/local/include -L/usr/local/lib \
+ *  -lwiringPi -lrt -lcurl
  *
- * Author: Ondrej Wisniewski
+ * Author: Ondrej Wisniewski (ondrej.wisniewski at gmail.com)
  * 
  * Last modified: 10/06/2014
  */
@@ -318,9 +320,6 @@ static void timer_handler(int signum)
    
    if (is_midnight())
    {
-#ifdef DEBUG
-      syslog(LOG_DAEMON | LOG_NOTICE, "DEBUG - It's midnight\n");
-#endif          
       if (!reset_done)
       {
          emon_data.energy_day = pulse_count_daily*config.wh_per_pulse;

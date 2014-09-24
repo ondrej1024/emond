@@ -21,10 +21,6 @@
 #include "webapi.h"
 
 
-/* ThingSpeak API definitions */
-#define THINGSPEAK_API_BASE_URI "https://api.thingspeak.com"
-#define THINGSPEAK_API_TALKBACK_URI THINGSPEAK_API_BASE_URI"/talkbacks"
-
 /* EmonCMS API definitions */
 #define EMONCMS_API_BASE_URI "http://emoncms.org"
 #define EMONCMS_API_INPUT_URI EMONCMS_API_BASE_URI"/input/post.json"
