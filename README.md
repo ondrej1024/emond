@@ -89,7 +89,6 @@ Follow the instructions on the projects home page: http://wiringpi.com/download-
 
 * Build and install :  
 <pre>
-    cd src
     make
     sudo make install
 </pre>

@@ -6,7 +6,8 @@
 RM	= \rm -f
 PROG	= emond
 BINPATH	=/usr/local/bin
-CNFPATH	=/etc/
+CNFPATH	=/etc
+SRCPATH	=./src
 
 SRC	= emond.c sockets.c lcdproc.c config.c webapi.c
 OBJ	= $(SRC:.c=.o)
@@ -26,16 +27,17 @@ all: target
 
 target: Makefile
 	@echo "--- Compile and Link all object files to create the executable file: $(PROG) ---"
-	$(CC) $(SRC) -o $(PROG) $(CFLAGS) $(OBJS_DEPEND) $(OPTIONS)
+	cd $(SRCPATH); $(CC) $(SRC) -o $(PROG) $(CFLAGS) $(OBJS_DEPEND) $(OPTIONS)
 	@echo ""
 
-clean :
+clean:
 	@echo "---- Cleaning all object and executable files ----"
 	$(RM) $(PROG) $(OBJ)
 	@echo "" 
 
-install : target
+install: target
 	@echo "---- Install binaries and scripts ----"
-	cp $(PROG) $(BINPATH)
-	cp emon $(CNFPATH)/init.d/
+	cp $(SRCPATH)/$(PROG) $(BINPATH)
+	cp conf/emon.conf $(CNFPATH)/
+	cp init.d/emon $(CNFPATH)/init.d/
  
