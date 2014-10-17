@@ -38,7 +38,9 @@
 
 <p>This software implements a Smart Energy Monitor to be run on the RaspberryPi. In short, it is a simplified version of a combination of the <em>emonTX</em>, <em>emonGLCD</em> and <em>emonBase</em> modules, developed by the OpenEnergyMonitor project (<a href="http://openenergymonitor.org">http://openenergymonitor.org</a>).<br>
 It connects to an energy meter via the SO (pulse) interface and measures/calculates the instant power consumption as well as the electrical energy on daily and monthly basis. The data is sent to EmonCMS (<a href="http://emoncms.org">http://emoncms.org</a>) which is the Web server used by the OpenEnergyMonitor project. EmonCMS can then be deployed to further process your data (store, manipulate, chart, ...).<br>
-A local LCD display is supported to have instant access to the latest measurements.<br><br></p>
+The easiest way to display the energy data is to use the "My Electrics" appliance in EmonCMS.<br>
+A local LCD display is supported to have instant access to the latest measurements.<br>
+<br></p>
 
 <h3>
 <a name="features" class="anchor" href="#features"><span class="octicon octicon-link"></span></a>Features</h3>
@@ -49,24 +51,36 @@ A local LCD display is supported to have instant access to the latest measuremen
 <li>Filtering of short glitches on the pulse counting GPIO line</li>
 <li>Display of measurements on local LCD display (via integrated lcdproc client)</li>
 <li>Transmission of measurements to EmonCMS (via WebAPI)</li>
-<li>Easy customization of parameters via configuration file<br><br>
+<li>Full compatibility with "My Electric" appliance in EmonCMS</li>
+<li>Easy customization of parameters via configuration file<br>
+<br>
 </li>
-</ul><h3>
+</ul>
+
+<h3>
 <a name="coming-soon-to-do" class="anchor" href="#coming-soon-to-do"><span class="octicon octicon-link"></span></a>Coming soon (to do)</h3>
 
 <ul>
 <li>Save daily and monthly energy counters periodically to persistant storage and restore at restart</li>
 <li>Configurable WebAPI update rate limit</li>
-<li>Display daily/monthly energy cost<br><br>
+<li>Support for 1-wire temperature sensors
+<br>
 </li>
-</ul><h3>
+</ul>
+
+<h3>
 <a name="nice-to-have-wishlist" class="anchor" href="#nice-to-have-wishlist"><span class="octicon octicon-link"></span></a>Nice to have (wishlist)</h3>
 
 <ul>
+<li>Display daily/monthly energy cost</li>
 <li>Command line tool for reading current power values and energy counters</li>
-<li>Alarm generation when approaching maximum power consumption<br><br>
+<li>Alarm generation when approaching maximum power consumption</li>
+<li>Improved input filtering by measuring and validating pulse length<br>
+<br>
 </li>
-</ul><h3>
+</ul>
+
+<h3>
 <a name="hardware-modules" class="anchor" href="#hardware-modules"><span class="octicon octicon-link"></span></a>Hardware modules</h3>
 
 <h4>
@@ -82,7 +96,9 @@ A local LCD display is supported to have instant access to the latest measuremen
 <ul>
 <li>optical pulse counting (via energy meters LED)</li>
 <li>electrical puylse counting (via energy meters SO interface)</li>
-</ul><p>For more info on pulse counting see <a href="http://openenergymonitor.org/emon/buildingblocks/introduction-to-pulse-counting">http://openenergymonitor.org/emon/buildingblocks/introduction-to-pulse-counting</a>.  </p>
+</ul>
+
+<p>For more info on pulse counting see <a href="http://openenergymonitor.org/emon/buildingblocks/introduction-to-pulse-counting">http://openenergymonitor.org/emon/buildingblocks/introduction-to-pulse-counting</a>.  </p>
 
 <p><strong>emond</strong> is being developed and tested with this type of energy meter that was installed in addition to the one provided by the energy company:  </p>
 
@@ -95,7 +111,8 @@ A local LCD display is supported to have instant access to the latest measuremen
 
 <p><img src="http://store.melabs.com/graphics/00000001/CFAH2004AYYHJT.jpg" alt="LCD display"></p>
 
-<p>On the RaspberryPi, lcdproc supports this kind of display connected via the GPIO lines.<br><br></p>
+<p>On the RaspberryPi, lcdproc supports this kind of display connected via the GPIO lines.<br>
+<br></p>
 
 <h3>
 <a name="screenshot" class="anchor" href="#screenshot"><span class="octicon octicon-link"></span></a>Screenshot</h3>
@@ -140,21 +157,24 @@ cd emond-master
 <p>Build and install :  </p>
 
 <pre>
-cd src
 make
 sudo make install
 </pre>
 </li>
 <li>
-<p>Install lcdproc :<br><strong>emond</strong> needs the LCDd server from the lcdproc project (<a href="http://www.lcdproc.org">http://www.lcdproc.org</a>) to be installed and running on your system if you want to display the measurements on a local LCD diplay. However, emond can also be used without local display.  </p>
+<p>Install lcdproc :<br>
+<strong>emond</strong> needs the LCDd server from the lcdproc project (<a href="http://www.lcdproc.org">http://www.lcdproc.org</a>) to be installed and running on your system if you want to display the measurements on a local LCD diplay. However, emond can also be used without local display.  </p>
 
 <pre>
 sudo apt-get install lcdproc
 </pre>
 
-<p>Then you need to configure the lcdproc server LCDd according to your display via its configuration file LCDd.conf<br><br></p>
+<p>Then you need to configure the lcdproc server LCDd according to your display via its configuration file LCDd.conf<br>
+<br></p>
 </li>
-</ul><h3>
+</ul>
+
+<h3>
 <a name="configuration" class="anchor" href="#configuration"><span class="octicon octicon-link"></span></a>Configuration</h3>
 
 <p>You can customize the application to your needs via the config file emon.conf which should be placed in the /etc/ system folder. An example file is provided together with the programs source code.  </p>
