@@ -23,7 +23,7 @@
  *
  * Author: Ondrej Wisniewski (ondrej.wisniewski at gmail.com)
  * 
- * Last modified: 10/06/2014
+ * Last modified: 17/10/2014
  */
 
 #include <stdlib.h>
@@ -42,7 +42,7 @@
 #include "webapi.h"
 
 
-#define VERSION "0.4"
+#define VERSION "0.5"
 
 #define CONFIG_FILE "/etc/emon.conf"
 
@@ -221,20 +221,29 @@ static void gpio_handler(void)
    }
    else
    {
+      /* Calculate elapsed time since last pulse occured */
       t_diff = time_diff_ms(now_ts, prev_ts);
       //printf ("elapsed %lu ms since last toggle event\n", t_diff);
 
-      /* Filter very short pulses (glitches) */
+      /* TODO: Better input filerting
+       * In order to improve the filtering of invalid pulses, we should first
+       * measure the pulse lenght and validate if it is within a reasonable
+       * range. A pulse coming from the energy meter will always have the same 
+       * length which should be documented on its datasheet.
+       */
+      
+      /* Filter pulses which occur very close to each other (possible glitches) */
       if (t_diff > MIN_PULSE_PERIOD_MS)
       {
          /* Calculate instant power (in Watt) and display it */
          power = (unsigned int)(config.wh_per_pulse*3600000.0/t_diff);
 
-         /* Filter spurious pulses */
+         /* Filter more spurious pulses */
          if (power < config.max_power)
          {         
-            syslog(LOG_DAEMON | LOG_NOTICE, "Instant power is %u W\n", power);
-            
+#if DEBUG
+            syslog(LOG_DAEMON | LOG_DEBUG, "Instant power is %u W\n", power);
+#endif
             /* Count pulses */
             pulse_count_daily++;
             pulse_count_monthly++;
@@ -246,6 +255,8 @@ static void gpio_handler(void)
             
             /* Send data to EmonCMS via WebAPI */
             emon_data.inst_power = power;
+            emon_data.energy_day = pulse_count_daily*config.wh_per_pulse;
+            emon_data.energy_month = pulse_count_monthly*config.wh_per_pulse;
             emoncms_send(&emon_data);
          }
          else
@@ -322,8 +333,6 @@ static void timer_handler(int signum)
    {
       if (!reset_done)
       {
-         emon_data.energy_day = pulse_count_daily*config.wh_per_pulse;
-         
          /* Reset daily pulse counter */
          syslog(LOG_DAEMON | LOG_NOTICE, "Resetting daily energy counter (current value %lu)\n", 
                 pulse_count_daily);
@@ -335,17 +344,11 @@ static void timer_handler(int signum)
 
          if(is_first_dom())
          {
-            emon_data.energy_month = pulse_count_monthly*config.wh_per_pulse;
-            
             /* Reset monthly pulse counter */
             syslog(LOG_DAEMON | LOG_NOTICE, "Resetting monthly energy counter (current value %lu)\n", 
                    pulse_count_monthly);
             pulse_count_monthly=0;
          }
-         
-         /* Send data to EmonCMS via WebAPI */
-         /* TODO: retry if sending fails */
-         emoncms_send(&emon_data);
       }
    }
    else
@@ -381,7 +384,7 @@ int main(int argc, char **argv)
         return (1);
    }
 
-#ifdef DEBUG
+#if DEBUG
    syslog(LOG_DAEMON | LOG_NOTICE, "Config paramters read from .conf file:\n");
    syslog(LOG_DAEMON | LOG_NOTICE, "pulse_input_pin: %u\n", config.pulse_input_pin);
    syslog(LOG_DAEMON | LOG_NOTICE, "wh_per_pulse: %u\n", config.wh_per_pulse);
