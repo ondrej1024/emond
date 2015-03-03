@@ -23,7 +23,7 @@
  *
  * Author: Ondrej Wisniewski (ondrej.wisniewski at gmail.com)
  * 
- * Last modified: 17/10/2014
+ * Last modified: 03/03/2015
  */
 
 #include <stdlib.h>
@@ -42,11 +42,12 @@
 #include "webapi.h"
 
 
-#define VERSION "0.5"
+#define VERSION "0.6"
 
 #define CONFIG_FILE "/etc/emon.conf"
+#define NV_FILENAME "emond.dat"
 
-#define DEBUG 1
+#define DEBUG 0
 
 /* timer period (in sec) */
 #define TIMER_PERIOD 30
@@ -60,7 +61,10 @@ typedef struct
     /* [counter] */
     unsigned int pulse_input_pin;
     unsigned int wh_per_pulse;
+    unsigned int pulse_length;
     unsigned int max_power;
+    /* [storage] */
+    const char* flash_dir;
     /* [lcd] */
     unsigned int lcdproc_port;
     /* [webapi] */
@@ -98,9 +102,17 @@ static int config_cb(void* user, const char* section, const char* name, const ch
    {
       pconfig->wh_per_pulse = atoi(value);
    } 
+   else if (MATCH("counter", "pulse_length")) 
+   {
+      pconfig->pulse_length = atoi(value);
+   } 
    else if (MATCH("counter", "max_power")) 
    {
       pconfig->max_power = atoi(value);
+   } 
+   else if (MATCH("storage", "flash_dir")) 
+   {
+      pconfig->flash_dir = strdup(value);
    } 
    else if (MATCH("lcd", "lcdproc_port")) 
    {
@@ -120,6 +132,126 @@ static int config_cb(void* user, const char* section, const char* name, const ch
       return -1;  /* unknown section/name, error */
    }
    return 0;
+}
+
+/**********************************************************
+ * Function: read_flash()
+ * 
+ * Description:
+ *           Reads non volatile data from permanent
+ *           storage on flash disk.
+ * 
+ * Returns:  0 on success, <0 otherwise
+ *********************************************************/
+int read_flash(const char *path, const char *filename)
+{ 
+
+#define BUFSIZE 16
+   
+   FILE *f;
+   char file[40];
+   char buf[BUFSIZE];
+   int  rc=0;
+   
+   /* TODO: check that the saved data is still useful,
+    * e.g. we didn't cross midnight since last saving data 
+    */
+   
+   sprintf(file, "%s/%s", path, filename);
+   if ((f=fopen(file, "r")) != NULL)
+   {
+      /* Read daily counter */
+      if (fgets(buf, BUFSIZE, f) != NULL)
+      {
+         pulse_count_daily=atoi(buf); 
+      
+         /* Read monthly counter */
+         if (fgets(buf, BUFSIZE, f) != NULL)
+         {
+            pulse_count_monthly=atoi(buf); 
+            syslog(LOG_DAEMON | LOG_INFO, "Load data from file: daily counter %lu, monthly counter %lu\n", 
+                                           pulse_count_daily, pulse_count_monthly);
+         }
+         else
+         {
+            syslog(LOG_DAEMON | LOG_ERR, "Error reading monthly counter from file: %s\n", strerror(errno));
+            rc = -2;  
+         }      
+      }
+      else
+      {
+         syslog(LOG_DAEMON | LOG_ERR, "Error reading daily counter from file: %s\n", strerror(errno));
+         rc = -1;  
+      }
+      
+      fclose(f);
+   }
+   else
+   {
+      if (errno == 2)
+      {
+         syslog(LOG_DAEMON | LOG_INFO, "Data file %s not yet created\n", file);
+      }
+      else
+      {
+         syslog(LOG_DAEMON | LOG_ERR, "Error opening data file %s for reading: %s\n", file, strerror(errno));
+         rc = -3;
+      }
+   }
+   
+   return rc;
+}
+
+/**********************************************************
+ * Function: write_flash()
+ * 
+ * Description:
+ *           Writes non volatile data to permanent
+ *           storage on flash disk (must be writeable).
+ * 
+ * Returns:  0 on success, <0 otherwise
+ *********************************************************/
+int write_flash(const char *path, const char *filename)
+{ 
+
+   FILE *f;
+   char file[40];
+   int  rc=0;
+
+   sprintf(file, "%s/%s", path, filename);
+   if ((f=fopen(file, "w")) != NULL)
+   {
+      if (fprintf(f, "%lu\n", pulse_count_daily) > 0)
+      {
+         if (fprintf(f, "%lu\n", pulse_count_monthly) > 0)
+         {
+            rc = 0;
+#if DEBUG
+            syslog(LOG_DAEMON | LOG_DEBUG, "Saved data to file: daily counter %lu, monthly counter %lu\n", 
+                                            pulse_count_daily, pulse_count_monthly);
+#endif
+         }
+         else
+         {
+            syslog(LOG_DAEMON | LOG_ERR, "Error writing monthly counter to file: %s\n", strerror(errno));
+            rc = -2;  
+         }
+      }
+      else
+      {
+         syslog(LOG_DAEMON | LOG_ERR, "Error writing daily counter to file: %s\n", strerror(errno));
+         rc = -1;  
+      }
+      
+      fclose(f);
+   }
+   else
+   {
+      syslog(LOG_DAEMON | LOG_ERR, "Error opening file %s for writing: %s", file, strerror(errno));
+      rc = -3;
+   }
+   
+   return rc;
 }
 
 /**********************************************************
@@ -191,81 +323,157 @@ void sigpipe_handler(int signum)
  *           Handles the event of the pulse detected on 
  *           the GPIO pin.
  * 
- *           It calculates the time between the last two 
- *           pulses and the resulting power consumption.
+ *           First a validation of the pulse is performed
+ *           to filter out wrong pulses. Then the time 
+ *           between the last two pulses and the resulting 
+ *           power consumption is calculated.
  * 
  * Returns:  -
  *********************************************************/
 static void gpio_handler(void)
 {
    static int first = 1;   
+   static int pulse_started = 0;
    static struct timespec prev_ts;
+   static struct timespec pulse_start_ts;
    struct timespec now_ts;
+   struct timespec pulse_end_ts;
+
    unsigned long t_diff;
+   unsigned long pulse_length;
    unsigned int power;
    
   
-   clock_gettime(CLOCK_REALTIME, &now_ts);
-   if (first)
+   /* read current pin value */
+   if (digitalRead(config.pulse_input_pin) == LOW)
    {
-      first=0;
-      //printf ("first edge deteted\n");
-      /* Count pulses */
-      pulse_count_daily++;
-      pulse_count_monthly++;
-      
-      /* Display updated measurements on LCD */
-      lcd_print(1, 0);
-      lcd_print(2, pulse_count_daily*config.wh_per_pulse);
-      lcd_print(3, pulse_count_monthly*config.wh_per_pulse);
+      /* Pulse started, check validity */   
+      if (pulse_started == 0)
+      {
+         pulse_started = 1;
+         clock_gettime(CLOCK_REALTIME, &pulse_start_ts);
+         //syslog(LOG_DAEMON | LOG_DEBUG, "Detected starting pulse");
+      }
+      else
+      {
+         syslog(LOG_DAEMON | LOG_WARNING, "Detected starting pulse out of sequence");
+      }
    }
    else
    {
-      /* Calculate elapsed time since last pulse occured */
-      t_diff = time_diff_ms(now_ts, prev_ts);
-      //printf ("elapsed %lu ms since last toggle event\n", t_diff);
-
-      /* TODO: Better input filerting
-       * In order to improve the filtering of invalid pulses, we should first
-       * measure the pulse lenght and validate if it is within a reasonable
-       * range. A pulse coming from the energy meter will always have the same 
-       * length which should be documented on its datasheet.
-       */
-      
-      /* Filter pulses which occur very close to each other (possible glitches) */
-      if (t_diff > MIN_PULSE_PERIOD_MS)
+      /* Pulse ended,  check validity */
+      if (pulse_started == 1)
       {
-         /* Calculate instant power (in Watt) and display it */
-         power = (unsigned int)(config.wh_per_pulse*3600000.0/t_diff);
-
-         /* Filter more spurious pulses */
-         if (power < config.max_power)
-         {         
+         pulse_started = 0;
+         clock_gettime(CLOCK_REALTIME, &pulse_end_ts);
+         pulse_length = time_diff_ms(pulse_end_ts, pulse_start_ts);
 #if DEBUG
-            syslog(LOG_DAEMON | LOG_DEBUG, "Instant power is %u W\n", power);
+         syslog(LOG_DAEMON | LOG_DEBUG, "Detected pulse with length %lu ms", pulse_length);
 #endif
-            /* Count pulses */
-            pulse_count_daily++;
-            pulse_count_monthly++;
+         /* If no reference pulse length was specified in the 
+          * configuration file, we use the length of the first
+          * pulse as reference to validate the subsequent pulses
+          */
+         if (first && (config.pulse_length==0))
+         {
+             config.pulse_length = pulse_length;
+             syslog(LOG_DAEMON | LOG_INFO, "Using pulse lenght %lu ms as reference", pulse_length);
+         }
+
+         /* Check if pulse lenght is within expected limits 
+          * (from energy meter data sheet), apply a 5% tolerance 
+          */         
+         if (pulse_length > config.pulse_length-(config.pulse_length/5) && 
+             pulse_length < config.pulse_length+(config.pulse_length/5))
+         {
+            /* Pulse is valid, but more checks will be performed */
             
-            /* Display updated measurements on LCD */
-            lcd_print(1, power);
-            lcd_print(2, pulse_count_daily*config.wh_per_pulse);
-            lcd_print(3, pulse_count_monthly*config.wh_per_pulse);
-            
-            /* Send data to EmonCMS via WebAPI */
-            emon_data.inst_power = power;
-            emon_data.energy_day = pulse_count_daily*config.wh_per_pulse;
-            emon_data.energy_month = pulse_count_monthly*config.wh_per_pulse;
-            emoncms_send(&emon_data);
+            now_ts = pulse_end_ts;
+            if (first)
+            {
+               first=0;
+               
+               syslog(LOG_DAEMON | LOG_INFO, "Detected first pulse with length %lu ms", pulse_length);
+               
+               /* Count pulses */
+               pulse_count_daily++;
+               pulse_count_monthly++;
+               
+               /* Display updated measurements on LCD */
+               lcd_print(1, 0);
+               lcd_print(2, pulse_count_daily*config.wh_per_pulse);
+               lcd_print(3, pulse_count_monthly*config.wh_per_pulse);
+            }
+            else
+            {
+               /* Calculate elapsed time since last pulse occured */
+               t_diff = time_diff_ms(now_ts, prev_ts);
+               
+               /* Filter pulses which occur very close to each other (possible glitches) */
+               if (t_diff > MIN_PULSE_PERIOD_MS)
+               {
+                  /* Calculate instant power (in Watt) and display it */
+                  power = (unsigned int)(config.wh_per_pulse*3600000.0/t_diff);
+                  
+                  /* Filter impossible high power values */
+                  if (power < config.max_power)
+                  {
+                     /* All filter checks passed, perform measurement/calculation */
+#if DEBUG
+                     syslog(LOG_DAEMON | LOG_DEBUG, "Instant power is %u W\n", power);
+#endif
+                     /* Count pulses */
+                     pulse_count_daily++;
+                     pulse_count_monthly++;
+                     
+                     /* Display updated measurements on LCD */
+                     lcd_print(1, power);
+                     lcd_print(2, pulse_count_daily*config.wh_per_pulse);
+                     lcd_print(3, pulse_count_monthly*config.wh_per_pulse);
+                     
+                     /* Send data to EmonCMS via WebAPI */
+                     emon_data.inst_power = power;
+                     emon_data.energy_day = pulse_count_daily*config.wh_per_pulse;
+                     emon_data.energy_month = pulse_count_monthly*config.wh_per_pulse;
+                     emoncms_send(&emon_data);
+                  }
+                  else
+                  {
+                     syslog(LOG_DAEMON | LOG_WARNING, "Instant power is out of range! (%u W)\n", power);
+                  }
+               }
+            }
+            prev_ts = now_ts;
          }
          else
          {
-            syslog(LOG_DAEMON | LOG_WARNING, "Instant power is out of range! (%u W), spurious pulse?\n", power);
+            syslog(LOG_DAEMON | LOG_WARNING, "Detected invalid pulse (length=%lu ms)\n", pulse_length);
          }
       }
-   }
-   prev_ts = now_ts;
+      else
+      {
+         syslog(LOG_DAEMON | LOG_WARNING, "Detected ending pulse out of sequence");
+      }
+   } 
+}
+
+/**********************************************************
+ * Function: is_full_hour()
+ * 
+ * Description:
+ *           Checks if the current time is the full hour. 
+ * 
+ * Returns:  1 if the current time is xx:00 min
+ *           0 otherwise
+ *********************************************************/
+static int is_full_hour(void)
+{
+   struct tm *now_tm;
+   time_t now = time(NULL);
+   
+   now_tm = localtime(&now);
+   
+   return (now_tm->tm_min==0);
 }
 
 /**********************************************************
@@ -321,6 +529,7 @@ static int is_first_dom(void)
 static void timer_handler(int signum)
 {
    static int reset_done=0;
+   static int save_done=0;
    
    /* Restart the timer */
    if (setitimer(ITIMER_REAL, &timer, NULL) < 0)
@@ -328,7 +537,26 @@ static void timer_handler(int signum)
       syslog(LOG_DAEMON | LOG_ERR, "Unable to restart interval timer: %s\n", strerror (errno));
       return;
    }
-   
+
+   /* Check if it is the full hour */
+   if (is_full_hour())
+   {
+      if (!save_done)
+      {
+         /* Save pulse counters to flash */
+         if (strlen(config.flash_dir) > 0)
+         {
+            write_flash(config.flash_dir, NV_FILENAME);
+         }
+         save_done=1;
+      }
+   }
+   else
+   {
+      save_done=0;
+   }  
+
+   /* Check if it is midnight */
    if (is_midnight())
    {
       if (!reset_done)
@@ -339,9 +567,6 @@ static void timer_handler(int signum)
          pulse_count_daily=0;
          reset_done=1;
          
-         /* Save monthly pulse counter to flash */
-         /* TODO */
-
          if(is_first_dom())
          {
             /* Reset monthly pulse counter */
@@ -385,22 +610,33 @@ int main(int argc, char **argv)
    }
 
 #if DEBUG
-   syslog(LOG_DAEMON | LOG_NOTICE, "Config paramters read from .conf file:\n");
+   syslog(LOG_DAEMON | LOG_NOTICE, "Config parameters read from %s:\n", CONFIG_FILE);
+   syslog(LOG_DAEMON | LOG_NOTICE, "***************************\n");
    syslog(LOG_DAEMON | LOG_NOTICE, "pulse_input_pin: %u\n", config.pulse_input_pin);
    syslog(LOG_DAEMON | LOG_NOTICE, "wh_per_pulse: %u\n", config.wh_per_pulse);
+   syslog(LOG_DAEMON | LOG_NOTICE, "pulse_length: %u\n", config.pulse_length);
    syslog(LOG_DAEMON | LOG_NOTICE, "max_power: %u\n", config.max_power);
+   syslog(LOG_DAEMON | LOG_NOTICE, "flash_dir: %s\n", config.flash_dir);
    syslog(LOG_DAEMON | LOG_NOTICE, "lcdproc_port: %u\n", config.lcdproc_port);
    syslog(LOG_DAEMON | LOG_NOTICE, "api_key: %s\n", config.api_key);   
    syslog(LOG_DAEMON | LOG_NOTICE, "node_number: %u\n", config.node_number);
+   syslog(LOG_DAEMON | LOG_NOTICE, "***************************\n");
 #endif
    
    /* Fill in common data for WebAPI */
    emon_data.api_key = strdup(config.api_key);
    emon_data.node_number = config.node_number;
    
-   /* Load monthly (and daily?) pulse counter from flash */
-   /* TODO */
-
+   /* Load monthly and daily pulse counters from flash */
+   if (strlen(config.flash_dir) > 0)
+   {
+      read_flash(config.flash_dir, NV_FILENAME);
+   }
+   else
+   {
+      syslog(LOG_DAEMON | LOG_INFO, "No storage dir provided in config, disabling periodic storage of counter values");
+   }
+   
    /* Init LCD screen */
    if (lcd_init() < 0)
    {
@@ -416,8 +652,9 @@ int main(int argc, char **argv)
    pinMode(config.pulse_input_pin, INPUT);
    pullUpDnControl(config.pulse_input_pin, PUD_UP);
    usleep(10000);
-   
-   if (wiringPiISR(config.pulse_input_pin, INT_EDGE_FALLING, gpio_handler) < 0)
+
+   /* Generate interrupt on both edges on the inut pin */
+   if (wiringPiISR(config.pulse_input_pin, INT_EDGE_BOTH, gpio_handler) < 0)
    {
       syslog(LOG_DAEMON | LOG_ERR, "Unable to setup ISR for GPIO: %s\n", strerror (errno));
       return (3);
