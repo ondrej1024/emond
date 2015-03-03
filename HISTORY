@@ -1,6 +1,11 @@
 Version history
 ===============
 
+0.6: 03/03/2015
+- Improvement of false pulse detection
+- Periodic saving of daily and monthly energy counters to persistant storage
+- Loading of saved energy counters at startup (resume counting)
+
 0.5: 17/10/2014
 - Sending also daily and monthly energy values to WebAPI every time Power measurement is sent
 - Updated README

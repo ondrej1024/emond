@@ -2,7 +2,7 @@
 #### Smart Energy Monitor
 
 ### About
-This software implements a Smart Energy Monitor to be run on the RaspberryPi. In short, it is a simplified version of a combination of the *emonTX*, *emonGLCD* and *emonBase* modules, developed by the OpenEnergyMonitor project (http://openenergymonitor.org).  
+This software implements a Smart Energy Monitor to be run on the RaspberryPi. In short, it is a simplified version of a combination of the *emonTX*, *emonGLCD* and *emonBase* modules, developed by the OpenEnergyMonitor project (http://openenergymonitor.org). It is a pure software solution and doesn't require any additional hardware modules to be added.  
 It connects to an energy meter via the SO (pulse) interface and measures/calculates the instant power consumption as well as the electrical energy on daily and monthly basis. The data is sent to EmonCMS (http://emoncms.org) which is the Web server used by the OpenEnergyMonitor project. EmonCMS can then be deployed to further process your data (store, manipulate, chart, ...).  
 The easiest way to display the energy data is to use the "My Electrics" appliance in EmonCMS.  
 A local LCD display is supported to have instant access to the latest measurements.  
@@ -11,7 +11,8 @@ A local LCD display is supported to have instant access to the latest measuremen
 ### Features
 - Instant power measurement using energy meter pulses
 - Daily and monthly energy calculation
-- Filtering of short glitches on the pulse counting GPIO line
+- Periodic saving of energy counters to persistant storage and restoring at restart
+- Filtering of short glitches and false pulses on the pulse counting GPIO line
 - Display of measurements on local LCD display (via integrated lcdproc client)
 - Transmission of measurements to EmonCMS (via WebAPI)
 - Full compatibility with "My Electric" appliance in EmonCMS
@@ -19,7 +20,6 @@ A local LCD display is supported to have instant access to the latest measuremen
 <br>
 
 ### Coming soon (to do)
-- Save daily and monthly energy counters periodically to persistant storage and restore at restart
 - Configurable WebAPI update rate limit
 - Support for 1-wire temperatue sensor  
 <br>
@@ -28,7 +28,7 @@ A local LCD display is supported to have instant access to the latest measuremen
 - Display daily/monthly energy cost
 - Command line tool for reading current power values and energy counters
 - Alarm generation when approaching maximum power consumption
-- Improved input filtering by measuring and validating pulse length  
+- Support for Energy meters with Modbus interface
 <br>
 
 ### Hardware modules
@@ -46,6 +46,10 @@ For more info on pulse counting see http://openenergymonitor.org/emon/buildingbl
 
 ![Energy Meter](http://www.digitale-elektronik.de/shopsystem/images/WSZ230V-50A_large.jpg)
 
+The cabling has to be done as follows:
+- SO- output on energy meter to GND on RaspberryPi
+- SO+ output on energy meter to GPIO[x] on RaspberryPi  
+<br>
 
 #### LCD display
 The LCD display is optional. It is controlled via the *lcdproc* software. **emond** implements an lcdproc client which sends its data to lcdproc which eventually displays the data on the LCD. Therefore any display supported by lcdproc can be used. However **emond** is optimised for a 20x4 character display such this one:
@@ -112,7 +116,13 @@ You can customize the application to your needs via the config file emon.conf wh
 [counter]
 pulse_input_pin = 25    # BCM pin number used for pulse input from energy meter
 wh_per_pulse    = 100   # Wh per pulse (Energy meter setting)
-max_power       = 3000  # max possible power (in W) provided by energy company
+pulse_length    = 100   # pulse length (in ms), leave blank for auto detection
+max_power       = 3300  # max possible power (in W) provided by energy company
+
+# Storage parameters
+################################################
+[storage]
+flash_dir = /media/data # Folder for permanent (writable) storage
 
 # LCD display specific parameters
 ################################################
