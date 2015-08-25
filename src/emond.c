@@ -19,11 +19,11 @@
  * Build command:
  * gcc -o emond emond.c sockets.c lcdproc.c config.c webapi.c \ 
  *  -I/usr/local/include -L/usr/local/lib \
- *  -lwiringPi -lrt -lcurl
+ *  -lwiringPi -lrt -lcurl -lpthread
  *
  * Author: Ondrej Wisniewski (ondrej.wisniewski at gmail.com)
  * 
- * Last modified: 03/03/2015
+ * Last modified: 24/08/2015
  */
 
 #include <stdlib.h>
@@ -42,18 +42,22 @@
 #include "webapi.h"
 
 
-#define VERSION "0.6"
+/* Uncomment this to enable debug mode */
+//#define DEBUG
+
+#define VERSION "0.7"
 
 #define CONFIG_FILE "/etc/emon.conf"
 #define NV_FILENAME "emond.dat"
-
-#define DEBUG 0
 
 /* timer period (in sec) */
 #define TIMER_PERIOD 30
 
 /* min pulse period for glitch detection */
 #define MIN_PULSE_PERIOD_MS 200
+
+/* tolerance for pulse verification (in %) */
+#define PULSE_TOLERANCE 5
 
 
 typedef struct
@@ -68,7 +72,9 @@ typedef struct
     /* [lcd] */
     unsigned int lcdproc_port;
     /* [webapi] */
+    const char* api_base_uri;
     const char* api_key;
+    unsigned int api_update_rate;
     unsigned int node_number;
 } config_t;
 
@@ -79,7 +85,7 @@ static emon_data_t emon_data;
 static unsigned long pulse_count_daily=0;
 static unsigned long pulse_count_monthly=0;
 
-
+      
 /**********************************************************
  * Function: config_cb()
  * 
@@ -118,9 +124,17 @@ static int config_cb(void* user, const char* section, const char* name, const ch
    {
       pconfig->lcdproc_port = atoi(value);
    } 
+   else if (MATCH("webapi", "api_base_uri")) 
+   {
+      pconfig->api_base_uri = strdup(value);
+   } 
    else if (MATCH("webapi", "api_key")) 
    {
       pconfig->api_key = strdup(value);
+   } 
+   else if (MATCH("webapi", "api_update_rate")) 
+   {
+      pconfig->api_update_rate = atoi(value);
    } 
    else if (MATCH("webapi", "node_number")) 
    {
@@ -226,7 +240,7 @@ int write_flash(const char *path, const char *filename)
          if (fprintf(f, "%lu\n", pulse_count_monthly) > 0)
          {
             rc = 0;
-#if DEBUG
+#ifdef DEBUG
             syslog(LOG_DAEMON | LOG_DEBUG, "Saved data to file: daily counter %lu, monthly counter %lu\n", 
                                             pulse_count_daily, pulse_count_monthly);
 #endif
@@ -341,6 +355,7 @@ static void gpio_handler(void)
 
    unsigned long t_diff;
    unsigned long pulse_length;
+   unsigned long pulse_delta = (config.pulse_length*PULSE_TOLERANCE)/100;
    unsigned int power;
    
   
@@ -367,7 +382,7 @@ static void gpio_handler(void)
          pulse_started = 0;
          clock_gettime(CLOCK_REALTIME, &pulse_end_ts);
          pulse_length = time_diff_ms(pulse_end_ts, pulse_start_ts);
-#if DEBUG
+#ifdef DEBUG
          syslog(LOG_DAEMON | LOG_DEBUG, "Detected pulse with length %lu ms", pulse_length);
 #endif
          /* If no reference pulse length was specified in the 
@@ -381,10 +396,10 @@ static void gpio_handler(void)
          }
 
          /* Check if pulse lenght is within expected limits 
-          * (from energy meter data sheet), apply a 5% tolerance 
+          * (from energy meter data sheet), apply a tolerance 
           */         
-         if (pulse_length > config.pulse_length-(config.pulse_length/5) && 
-             pulse_length < config.pulse_length+(config.pulse_length/5))
+         if (pulse_length > (config.pulse_length-pulse_delta) && 
+             pulse_length < (config.pulse_length+pulse_delta))
          {
             /* Pulse is valid, but more checks will be performed */
             
@@ -419,7 +434,7 @@ static void gpio_handler(void)
                   if (power < config.max_power)
                   {
                      /* All filter checks passed, perform measurement/calculation */
-#if DEBUG
+#ifdef DEBUG
                      syslog(LOG_DAEMON | LOG_DEBUG, "Instant power is %u W\n", power);
 #endif
                      /* Count pulses */
@@ -538,24 +553,6 @@ static void timer_handler(int signum)
       return;
    }
 
-   /* Check if it is the full hour */
-   if (is_full_hour())
-   {
-      if (!save_done)
-      {
-         /* Save pulse counters to flash */
-         if (strlen(config.flash_dir) > 0)
-         {
-            write_flash(config.flash_dir, NV_FILENAME);
-         }
-         save_done=1;
-      }
-   }
-   else
-   {
-      save_done=0;
-   }  
-
    /* Check if it is midnight */
    if (is_midnight())
    {
@@ -580,6 +577,24 @@ static void timer_handler(int signum)
    {
       reset_done=0;
    }
+   
+   /* Check if it is the full hour */
+   if (is_full_hour())
+   {
+      if (!save_done)
+      {
+         /* Save pulse counters to flash */
+         if (strlen(config.flash_dir) > 0)
+         {
+            write_flash(config.flash_dir, NV_FILENAME);
+         }
+         save_done=1;
+      }
+   }
+   else
+   {
+      save_done=0;
+   }
 }
 
 
@@ -603,32 +618,38 @@ int main(int argc, char **argv)
    signal(SIGALRM, timer_handler);
    
    /* Load configuration from .conf file */
+   memset((void*)&config, 0, sizeof(config));
    if (conf_parse(CONFIG_FILE, config_cb, &config) < 0) 
    {
         syslog(LOG_DAEMON | LOG_ERR, "Can't load %s\n", CONFIG_FILE);
         return (1);
    }
 
-#if DEBUG
    syslog(LOG_DAEMON | LOG_NOTICE, "Config parameters read from %s:\n", CONFIG_FILE);
    syslog(LOG_DAEMON | LOG_NOTICE, "***************************\n");
    syslog(LOG_DAEMON | LOG_NOTICE, "pulse_input_pin: %u\n", config.pulse_input_pin);
    syslog(LOG_DAEMON | LOG_NOTICE, "wh_per_pulse: %u\n", config.wh_per_pulse);
    syslog(LOG_DAEMON | LOG_NOTICE, "pulse_length: %u\n", config.pulse_length);
    syslog(LOG_DAEMON | LOG_NOTICE, "max_power: %u\n", config.max_power);
-   syslog(LOG_DAEMON | LOG_NOTICE, "flash_dir: %s\n", config.flash_dir);
+   if (config.flash_dir != NULL)
+      syslog(LOG_DAEMON | LOG_NOTICE, "flash_dir: %s\n", config.flash_dir);
    syslog(LOG_DAEMON | LOG_NOTICE, "lcdproc_port: %u\n", config.lcdproc_port);
-   syslog(LOG_DAEMON | LOG_NOTICE, "api_key: %s\n", config.api_key);   
+   if (config.api_base_uri != NULL)
+      syslog(LOG_DAEMON | LOG_NOTICE, "api_base_uri: %s\n", config.api_base_uri);
+   if (config.api_key != NULL)
+      syslog(LOG_DAEMON | LOG_NOTICE, "api_key: %s\n", config.api_key);   
+   syslog(LOG_DAEMON | LOG_NOTICE, "api_update_rate: %u\n", config.api_update_rate);
    syslog(LOG_DAEMON | LOG_NOTICE, "node_number: %u\n", config.node_number);
    syslog(LOG_DAEMON | LOG_NOTICE, "***************************\n");
-#endif
    
    /* Fill in common data for WebAPI */
-   emon_data.api_key = strdup(config.api_key);
+   emon_data.api_base_uri = config.api_base_uri;
+   emon_data.api_key = config.api_key;
+   emon_data.api_update_rate = config.api_update_rate;
    emon_data.node_number = config.node_number;
    
    /* Load monthly and daily pulse counters from flash */
-   if (strlen(config.flash_dir) > 0)
+   if (config.flash_dir != NULL)
    {
       read_flash(config.flash_dir, NV_FILENAME);
    }
@@ -643,21 +664,24 @@ int main(int argc, char **argv)
       syslog(LOG_DAEMON | LOG_WARNING, "Unable to setup LCD screen, display is disabled\n");
    }
    
-   /* Initialise the GPIO lines */ 
-   if (wiringPiSetupGpio() < 0)
+   if (config.pulse_input_pin > 0)
    {
-      syslog(LOG_DAEMON | LOG_ERR, "Unable to setup GPIO: %s\n", strerror (errno));
-      return (2);
-   }
-   pinMode(config.pulse_input_pin, INPUT);
-   pullUpDnControl(config.pulse_input_pin, PUD_UP);
-   usleep(10000);
-
-   /* Generate interrupt on both edges on the inut pin */
-   if (wiringPiISR(config.pulse_input_pin, INT_EDGE_BOTH, gpio_handler) < 0)
-   {
-      syslog(LOG_DAEMON | LOG_ERR, "Unable to setup ISR for GPIO: %s\n", strerror (errno));
-      return (3);
+      /* Initialise the GPIO lines */ 
+      if (wiringPiSetupGpio() < 0)
+      {
+         syslog(LOG_DAEMON | LOG_ERR, "Unable to setup GPIO: %s\n", strerror (errno));
+         return (2);
+      }
+      pinMode(config.pulse_input_pin, INPUT);
+      pullUpDnControl(config.pulse_input_pin, PUD_UP);
+      usleep(10000);
+      
+      /* Generate interrupt on both edges on the inut pin */
+      if (wiringPiISR(config.pulse_input_pin, INT_EDGE_BOTH, gpio_handler) < 0)
+      {
+         syslog(LOG_DAEMON | LOG_ERR, "Unable to setup ISR for GPIO: %s\n", strerror (errno));
+         return (3);
+      }
    }
    
    /* Configure the timer period (one shot mode). 
@@ -683,7 +707,7 @@ int main(int argc, char **argv)
     */
    while (1)
    {
-      sleep (1);
+      sleep(10);
    }
    
    return (0);

@@ -19,7 +19,7 @@ LIBS	= -L/usr/local/lib
 CFLAGS	= $(DEBUG) $(INCLUDE) $(LIBS) -Wformat=2 -Wall -Winline  -pipe -fPIC 
 
 # List of objects files for the dependency
-OBJS_DEPEND= -lwiringPi -lrt -lcurl
+OBJS_DEPEND= -lwiringPi -lrt -lcurl -lpthread
 
 # OPTIONS = --verbose
 

@@ -17,18 +17,15 @@ A local LCD display is supported to have instant access to the latest measuremen
 - Transmission of measurements to EmonCMS (via WebAPI)
 - Full compatibility with "My Electric" appliance in EmonCMS
 - Easy customization of parameters via configuration file  
-<br>
-
-### Coming soon (to do)
 - Configurable WebAPI update rate limit
-- Support for 1-wire temperatue sensor  
 <br>
 
 ### Nice to have (wishlist)
+- Alarm generation when approaching maximum power consumption
 - Display daily/monthly energy cost
 - Command line tool for reading current power values and energy counters
-- Alarm generation when approaching maximum power consumption
 - Support for Energy meters with Modbus interface
+- Support for 1-wire temperatue sensor  
 <br>
 
 ### Hardware modules
@@ -63,8 +60,14 @@ On the RaspberryPi, lcdproc supports this kind of display connected via the GPIO
 
 This is a screenshot of the EmonCMS dashboard, showing a daily power consumption chart and the current power in a gauge.  
 
-![Screenshot](https://raw.githubusercontent.com/ondrej1024/emond/bf3293137d0f1bc4acef06d7218ffeec1ce595ba/image/dashboard.png)
+![Screenshot](image/dashboard.png)
 
+
+And this is the EmonCMS MyElectric Web application (which looks really good on a Smartphone).  
+
+![MyElectric](image/myelectric.png)
+
+<br>
 
 ### Installation
 
@@ -132,8 +135,10 @@ lcdproc_port =  # Specify this if not using default lcdproc port
 # WebAPI specific parameters
 ################################################
 [webapi]
-api_key     = 1234567890  # Personal EmonCMS Write API key 
-node_number = 1           # Identifier of your node in EmonCMS
+api_base_uri = http://emoncms.org # Public EmonCMS server
+api_key      = 1234567890  # Personal EmonCMS API key 
+api_update_rate = 20       # min delay (in s) between 2 API requests
+node_number  = 1           # Identifier of your node in EmonCMS
 </pre>
 
 <br>

@@ -8,7 +8,7 @@
  *   (needs libcurl4-gnutls-dev installed on the build system)
  * 
  * Last modified:
- *   05/06/2014
+ *   24/08/2015
  *
  *****************************************************************************/ 
 
@@ -24,7 +24,9 @@ typedef struct
    unsigned int inst_power;
    unsigned int energy_day;
    unsigned int energy_month;
+   const char*  api_base_uri;
    const char*  api_key;
+   unsigned int api_update_rate;
    unsigned int node_number;
 } emon_data_t;
 
