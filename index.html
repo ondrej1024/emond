@@ -1,32 +1,36 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
+
   <head>
-    <meta charset="utf-8">
+    <meta charset='utf-8'>
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>Emond by ondrej1024</title>
+    <meta name="description" content="Emond : Smart energy monitor device software for EmonCMS">
 
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <script src="javascripts/scale.fix.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-    <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
+    <title>Emond</title>
   </head>
+
   <body>
-    <div class="wrapper">
-      <header>
-        <h1>Emond</h1>
-        <p>Smart energy monitor device software for EmonCMS</p>
-        <p class="view"><a href="https://github.com/ondrej1024/emond">View the Project on GitHub <small>ondrej1024/emond</small></a></p>
-        <ul>
-          <li><a href="https://github.com/ondrej1024/emond/zipball/master">Download <strong>ZIP File</strong></a></li>
-          <li><a href="https://github.com/ondrej1024/emond/tarball/master">Download <strong>TAR Ball</strong></a></li>
-          <li><a href="https://github.com/ondrej1024/emond">View On <strong>GitHub</strong></a></li>
-        </ul>
-      </header>
-      <section>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/ondrej1024/emond">View on GitHub</a>
+
+          <h1 id="project_title">Emond</h1>
+          <h2 id="project_tagline">Smart energy monitor device software for EmonCMS</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/ondrej1024/emond/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/ondrej1024/emond/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
         <h1>
 <a id="emond" class="anchor" href="#emond" aria-hidden="true"><span class="octicon octicon-link"></span></a>emond</h1>
 
@@ -54,16 +58,8 @@ A local LCD display is supported to have instant access to the latest measuremen
 <li>Transmission of measurements to EmonCMS (via WebAPI)</li>
 <li>Full compatibility with "My Electric" appliance in EmonCMS</li>
 <li>Easy customization of parameters via configuration file<br>
-<br>
 </li>
-</ul>
-
-<h3>
-<a id="coming-soon-to-do" class="anchor" href="#coming-soon-to-do" aria-hidden="true"><span class="octicon octicon-link"></span></a>Coming soon (to do)</h3>
-
-<ul>
-<li>Configurable WebAPI update rate limit</li>
-<li>Support for 1-wire temperatue sensor<br>
+<li>Configurable WebAPI update rate limit
 <br>
 </li>
 </ul>
@@ -72,10 +68,11 @@ A local LCD display is supported to have instant access to the latest measuremen
 <a id="nice-to-have-wishlist" class="anchor" href="#nice-to-have-wishlist" aria-hidden="true"><span class="octicon octicon-link"></span></a>Nice to have (wishlist)</h3>
 
 <ul>
+<li>Alarm generation when approaching maximum power consumption</li>
 <li>Display daily/monthly energy cost</li>
 <li>Command line tool for reading current power values and energy counters</li>
-<li>Alarm generation when approaching maximum power consumption</li>
-<li>Support for Energy meters with Modbus interface
+<li>Support for Energy meters with Modbus interface</li>
+<li>Support for 1-wire temperatue sensor<br>
 <br>
 </li>
 </ul>
@@ -128,7 +125,13 @@ A local LCD display is supported to have instant access to the latest measuremen
 
 <p>This is a screenshot of the EmonCMS dashboard, showing a daily power consumption chart and the current power in a gauge.  </p>
 
-<p><img src="https://raw.githubusercontent.com/ondrej1024/emond/bf3293137d0f1bc4acef06d7218ffeec1ce595ba/image/dashboard.png" alt="Screenshot"></p>
+<p><img src="https://raw.githubusercontent.com/ondrej1024/emond/master/image/dashboard.png" alt="Screenshot"></p>
+
+<p>And this is the EmonCMS MyElectric Web application (which looks really good on a Smartphone).  </p>
+
+<p><img src="https://raw.githubusercontent.com/ondrej1024/emond/master/image/myelectric.png" alt="MyElectric"></p>
+
+<p><br></p>
 
 <h3>
 <a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h3>
@@ -210,8 +213,10 @@ lcdproc_port =  # Specify this if not using default lcdproc port
 # WebAPI specific parameters
 ################################################
 [webapi]
-api_key     = 1234567890  # Personal EmonCMS Write API key 
-node_number = 1           # Identifier of your node in EmonCMS
+api_base_uri = http://emoncms.org # Public EmonCMS server
+api_key      = 1234567890  # Personal EmonCMS API key 
+api_update_rate = 20       # min delay (in s) between 2 API requests
+node_number  = 1           # Identifier of your node in EmonCMS
 </pre>
 
 <p><br></p>
@@ -238,11 +243,15 @@ node_number = 1           # Identifier of your node in EmonCMS
 Get in touch by e-mail to ondrej.wisniewski (at) gmail.com  </p>
       </section>
     </div>
-    <footer>
-      <p>Project maintained by <a href="https://github.com/ondrej1024">ondrej1024</a></p>
-      <p>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></p>
-    </footer>
-    <!--[if !IE]><script>fixScale(document);</script><![endif]-->
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Emond maintained by <a href="https://github.com/ondrej1024">ondrej1024</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
               <script type="text/javascript">
             var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
             document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
@@ -253,6 +262,7 @@ Get in touch by e-mail to ondrej.wisniewski (at) gmail.com  </p>
             pageTracker._trackPageview();
             } catch(err) {}
           </script>
+
 
   </body>
 </html>
