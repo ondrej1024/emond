@@ -81,7 +81,12 @@ static void *emoncms_send_thread(void* arg)
    int  rc;
    
    emon_data_t* data = (emon_data_t*)arg;
-   
+
+   /* Detach thread to free resources after it returns */
+   pthread_detach(pthread_self());
+
+   /* Block any further API request */
+   ready_to_send = 0;
    
    start = time(NULL);
 
@@ -214,7 +219,7 @@ int emoncms_send(emon_data_t* data)
    
    if (ready_to_send)
    {
-      ready_to_send = 0;
+      /* Create new thread which handles the Web API request */
       if (pthread_create(&tid, NULL, &emoncms_send_thread, (void*)data) != 0)
       {
          _debug("Unable to perform Web API request: pthread_create failed");
