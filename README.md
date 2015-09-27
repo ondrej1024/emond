@@ -3,9 +3,19 @@
 
 ### About
 This software implements a Smart Energy Monitor to be run on the RaspberryPi. In short, it is a simplified version of a combination of the *emonTX*, *emonGLCD* and *emonBase* modules, developed by the OpenEnergyMonitor project (http://openenergymonitor.org). It is a pure software solution and doesn't require any additional hardware modules to be added.  
-It connects to an energy meter via the SO (pulse) interface and measures/calculates the instant power consumption as well as the electrical energy on daily and monthly basis. The data is sent to EmonCMS (http://emoncms.org) which is the Web server used by the OpenEnergyMonitor project. EmonCMS can then be deployed to further process your data (store, manipulate, chart, ...).  
+
+It connects to an energy meter via the S0 (pulse) interface and measures/calculates the instant power consumption as well as the electrical energy on daily and monthly basis. The data is sent to EmonCMS (http://emoncms.org) which is the Web server used by the OpenEnergyMonitor project. EmonCMS can then be deployed to further process your data (store, manipulate, chart, ...).  
+
 The easiest way to display the energy data is to use the "My Electrics" appliance in EmonCMS.  
+
 A local LCD display is supported to have instant access to the latest measurements.  
+
+Here is a sample project which was realised with the **emond** software.  It is installed in the main electrical switchboard.
+<br>
+<br>
+
+![Smart Energy Monitor sample project](image/sample-project.png)
+
 <br>
 
 ### Features
@@ -35,17 +45,19 @@ As base module a Raspberry Pi is used to run the software. This dependency is de
 #### Energy meter
 Since **emond** uses the pulse counting method to calculate the instant power and electrical energy, an energy meter with a pulse output has to be used. There are basically two methods:  
 - optical pulse counting (via energy meters LED)
-- electrical puylse counting (via energy meters SO interface)
+- electrical pulse counting (via energy meters S0 interface)
 
 For more info on pulse counting see http://openenergymonitor.org/emon/buildingblocks/introduction-to-pulse-counting.  
 
-**emond** is being developed and tested with this type of energy meter that was installed in addition to the one provided by the energy company:  
+**emond** is being developed and tested with this type of simple energy meter that was installed in addition to the one provided by the energy company:  
 
 ![Energy Meter](http://www.digitale-elektronik.de/shopsystem/images/WSZ230V-50A_large.jpg)
 
 The cabling has to be done as follows:
-- SO- output on energy meter to GND on RaspberryPi
-- SO+ output on energy meter to GPIO[x] on RaspberryPi  
+- S0- output on energy meter to GND on RaspberryPi
+- S0+ output on energy meter to GPIO[x] on RaspberryPi  
+
+No external pullup resistor for the S0+ line is required as the RPi internal pullup will be enabled by the software.  
 <br>
 
 #### LCD display
@@ -53,7 +65,7 @@ The LCD display is optional. It is controlled via the *lcdproc* software. **emon
 
 ![LCD display](http://store.melabs.com/graphics/00000001/CFAH2004AYYHJT.jpg)
 
-On the RaspberryPi, lcdproc supports this kind of display connected via the GPIO lines.  
+On the RaspberryPi, [lcdproc](http://www.lcdproc.org) supports this kind of display connected via the GPIO lines. For the wiring of the display to the GPIO pins see the lcdproc documentation.  
 <br>
 
 ### Screenshot
@@ -66,6 +78,12 @@ This is a screenshot of the EmonCMS dashboard, showing a daily power consumption
 And this is the EmonCMS MyElectric Web application (which looks really good on a Smartphone).  
 
 ![MyElectric](image/myelectric.png)
+
+<br>
+
+The electrical switchboard with the Smarphone running the EmonCMS MyElectric Web application.
+
+![Sample project with smartphone](image/sample-project-with-smartphone.jpg)
 
 <br>
 
