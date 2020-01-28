@@ -175,6 +175,37 @@ If you want to autostart the program at every system reboot (recommended), issue
 </pre>
 
 
+### Running a second instance
+
+* Think of a simple suffix to identify the new instance, e.g. "hp1" for "Heat Pump #1" -- the full name of the instance will be "emon-hp1";
+* Customize the instance via the config file emon-hp1.conf which should be placed in the /etc/ system folder (see *Configuration* section above);
+* Create the script to launch the instance by copying the original emond script file which was installed in /etc/init.d/ :
+<pre>
+    cd /etc/init.d
+    sudo cp emon emon-hp1
+</pre>
+* Change the three following lines of the script accordingly to the name assigned to the new instance :
+<pre>
+# Provides:          emond-hp1
+</pre>
+<pre>
+PIDFILE=/var/run/$NAMEemond-hp1.pid
+</pre>
+<pre>
+OPTS=hp1
+</pre>
+* Start the new instance with the following command:
+<pre>
+    sudo service emon-hp1 start
+</pre>
+If you want to autostart the new instance at every system reboot (recommended), issue the following command:
+<pre>
+    sudo update-rc.d emon-hp1 defaults
+</pre>
+
+
+**Warning**: named instances do not support the local LCD display, since they would interfere with the main instance of the program, which is the only one allowed to use it.
+
 ### Contributing
 
 Any contribution like feedback, bug reports or code proposals are welcome and highly encouraged.  
