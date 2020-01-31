@@ -149,7 +149,7 @@ flash_dir = /media/data # Folder for permanent (writable) storage
 ################################################
 [lcd]
 lcdproc_port =  # Specify this if not using default lcdproc port
- 
+
 # WebAPI specific parameters
 ################################################
 [webapi]
@@ -175,7 +175,44 @@ If you want to autostart the program at every system reboot (recommended), issue
 </pre>
 
 
+### Running a second instance
+
+To run multiple instances of emond, a suffix to identify the second and all subsequent instances can be provided as command line parameter, e.g. `hp1` for "Heat Pump #1". The full name of the instance will be `emon-hp1`
+
+Customize the instance via its config file emon-hp1.conf which should be placed in the /etc/ system folder (see *Configuration* section above)
+
+Create the init script to launch the instance by copying the original emond init script which was installed in /etc/init.d/ :
+
+<pre>
+    cd /etc/init.d
+    sudo cp emon emon-hp1
+</pre>
+
+Change the three following lines of the init script according to the name assigned to the new instance :
+<pre>
+    # Provides:          emond-hp1
+    PIDFILE=/var/run/$NAME-hp1.pid
+    OPTS=hp1
+</pre>
+
+Start the new instance with the following command:
+<pre>
+    sudo service emon-hp1 start
+</pre>
+
+If you want to autostart the new instance at every system reboot (recommended), issue the following command:
+<pre>
+    sudo update-rc.d emon-hp1 defaults
+</pre>
+
+**Warning**: Named instances do not support the local LCD display, since they would interfere with the main instance of the program, which is the only one allowed to use it.
+
+
+
 ### Contributing
 
 Any contribution like feedback, bug reports or code proposals are welcome and highly encouraged.  
-Get in touch by e-mail to ondrej.wisniewski (at) gmail.com  
+Get in touch by e-mail to ondrej.wisniewski (at) gmail.com  or send a pull request. Thanks.
+
+
+
