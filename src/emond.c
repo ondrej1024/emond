@@ -392,6 +392,7 @@ static void gpio_handler(void)
          if (first && (config.pulse_length==0))
          {
              config.pulse_length = pulse_length;
+             pulse_delta = (config.pulse_length*PULSE_TOLERANCE)/100;
              syslog(LOG_DAEMON | LOG_INFO, "Using pulse lenght %lu ms as reference", pulse_length);
          }
 
