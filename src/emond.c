@@ -45,7 +45,7 @@
 /* Uncomment this to enable debug mode */
 //#define DEBUG
 
-#define VERSION "0.7.2"
+#define VERSION "0.7.3"
 
 #define BUFFER_SIZE 64
 
@@ -75,7 +75,7 @@ typedef struct
 {
     /* [counter] */
     unsigned int pulse_input_pin;
-    unsigned int wh_per_pulse;
+    double wh_per_pulse;
     unsigned int pulse_length;
     unsigned int max_power;
     /* [storage] */
@@ -117,7 +117,7 @@ static int config_cb(void* user, const char* section, const char* name, const ch
    }
    else if (MATCH("counter", "wh_per_pulse"))
    {
-      pconfig->wh_per_pulse = atoi(value);
+      pconfig->wh_per_pulse = atof(value);
    }
    else if (MATCH("counter", "pulse_length"))
    {
@@ -427,8 +427,8 @@ static void gpio_handler(void)
 
                /* Display updated measurements on LCD */
                lcd_print(1, 0);
-               lcd_print(2, pulse_count_daily*config.wh_per_pulse);
-               lcd_print(3, pulse_count_monthly*config.wh_per_pulse);
+               lcd_print(2, (unsigned int)(pulse_count_daily*config.wh_per_pulse));
+               lcd_print(3, (unsigned int)(pulse_count_monthly*config.wh_per_pulse));
             }
             else
             {
@@ -452,15 +452,18 @@ static void gpio_handler(void)
                      pulse_count_daily++;
                      pulse_count_monthly++;
 
+                     unsigned int energy_day = (unsigned int)(pulse_count_daily*config.wh_per_pulse);
+                     unsigned int energy_month = (unsigned int)(pulse_count_monthly*config.wh_per_pulse);
+
                      /* Display updated measurements on LCD */
                      lcd_print(1, power);
-                     lcd_print(2, pulse_count_daily*config.wh_per_pulse);
-                     lcd_print(3, pulse_count_monthly*config.wh_per_pulse);
+                     lcd_print(2, energy_day);
+                     lcd_print(3, energy_month);
 
                      /* Send data to EmonCMS via WebAPI */
                      emon_data.inst_power = power;
-                     emon_data.energy_day = pulse_count_daily*config.wh_per_pulse;
-                     emon_data.energy_month = pulse_count_monthly*config.wh_per_pulse;
+                     emon_data.energy_day = energy_day;
+                     emon_data.energy_month = energy_month;
                      emoncms_send(&emon_data);
                   }
                   else
@@ -654,7 +657,7 @@ int main(int argc, char **argv)
    syslog(LOG_DAEMON | LOG_NOTICE, "Config parameters read from %s:\n", CONFIG_FILE);
    syslog(LOG_DAEMON | LOG_NOTICE, "***************************\n");
    syslog(LOG_DAEMON | LOG_NOTICE, "pulse_input_pin: %u\n", config.pulse_input_pin);
-   syslog(LOG_DAEMON | LOG_NOTICE, "wh_per_pulse: %u\n", config.wh_per_pulse);
+   syslog(LOG_DAEMON | LOG_NOTICE, "wh_per_pulse: %f\n", config.wh_per_pulse);
    syslog(LOG_DAEMON | LOG_NOTICE, "pulse_length: %u\n", config.pulse_length);
    syslog(LOG_DAEMON | LOG_NOTICE, "max_power: %u\n", config.max_power);
    if (config.flash_dir != NULL)
