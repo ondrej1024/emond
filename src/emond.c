@@ -77,6 +77,7 @@ typedef struct
     unsigned int pulse_input_pin;
     double wh_per_pulse;
     unsigned int pulse_length;
+    unsigned int pulse_tolerance;
     unsigned int max_power;
     /* [storage] */
     const char* flash_dir;
@@ -122,6 +123,10 @@ static int config_cb(void* user, const char* section, const char* name, const ch
    else if (MATCH("counter", "pulse_length"))
    {
       pconfig->pulse_length = atoi(value);
+   }
+   else if (MATCH("counter", "pulse_tolerance"))
+   {
+      pconfig->pulse_tolerance = atoi(value);
    }
    else if (MATCH("counter", "max_power"))
    {
@@ -366,7 +371,7 @@ static void gpio_handler(void)
 
    unsigned long t_diff;
    unsigned long pulse_length;
-   unsigned long pulse_delta = (config.pulse_length*PULSE_TOLERANCE)/100;
+   unsigned long pulse_delta = (config.pulse_length*config.pulse_tolerance)/100;
    unsigned int power;
 
 
@@ -653,12 +658,15 @@ int main(int argc, char **argv)
         syslog(LOG_DAEMON | LOG_ERR, "Can't load %s\n", CONFIG_FILE);
         return (1);
    }
+   if (config.pulse_tolerance == 0)
+        config.pulse_tolerance = PULSE_TOLERANCE;
 
    syslog(LOG_DAEMON | LOG_NOTICE, "Config parameters read from %s:\n", CONFIG_FILE);
    syslog(LOG_DAEMON | LOG_NOTICE, "***************************\n");
    syslog(LOG_DAEMON | LOG_NOTICE, "pulse_input_pin: %u\n", config.pulse_input_pin);
    syslog(LOG_DAEMON | LOG_NOTICE, "wh_per_pulse: %f\n", config.wh_per_pulse);
    syslog(LOG_DAEMON | LOG_NOTICE, "pulse_length: %u\n", config.pulse_length);
+   syslog(LOG_DAEMON | LOG_NOTICE, "pulse_tolerance: %u\n", config.pulse_tolerance);
    syslog(LOG_DAEMON | LOG_NOTICE, "max_power: %u\n", config.max_power);
    if (config.flash_dir != NULL)
       syslog(LOG_DAEMON | LOG_NOTICE, "flash_dir: %s\n", config.flash_dir);
