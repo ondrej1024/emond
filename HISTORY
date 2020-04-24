@@ -1,6 +1,12 @@
 Version history
 ===============
 
+0.8: 24/04/2020
+- Added multi instance handling
+- Made 'wh_per_pulse' floating point
+- Made pulse_tolerance configurable
+- Bug fix
+
 0.7: 24/08/2015
 - Added configurable WebAPI URI
 - Added configurable WebAPI update rate limit

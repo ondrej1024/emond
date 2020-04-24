@@ -138,6 +138,7 @@ You can customize the application to your needs via the config file emon.conf wh
 pulse_input_pin = 25    # BCM pin number used for pulse input from energy meter
 wh_per_pulse    = 100   # Wh per pulse (Energy meter setting)
 pulse_length    = 100   # pulse length (in ms), leave blank for auto detection
+pulse_tolerance = 5     # pulse tolerance (in %), leave blank for default
 max_power       = 3300  # max possible power (in W) provided by energy company
 
 # Storage parameters

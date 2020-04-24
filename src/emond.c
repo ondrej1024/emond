@@ -45,7 +45,7 @@
 /* Uncomment this to enable debug mode */
 //#define DEBUG
 
-#define VERSION "0.7.3"
+#define VERSION "0.8"
 
 #define BUFFER_SIZE 64
 
